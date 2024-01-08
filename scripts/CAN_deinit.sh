@@ -1,71 +1,57 @@
 #!/bin/bash
 
-# Variable for 2 spaces
-SP=`echo "  "`
+comm_interface=$1
+result=1
 
 if [ "$(whoami)" != root ]
 then
   echo "Please run this script with sudo. Exiting!"
-  echo "Try sudo $0 -h"
   exit
-fi
 
-# Script arguments check
-echo "================================================================================"
-
-while [ ! $# -eq 0 ]
-do
-  case "$1" in
-    -i)
-      IF_NAME="$2"
-      shift
-      shift
-      ;;
-    -h)
-      echo "Usage ./CAN_deinit.sh [<options>]"
-      echo "where <options> are:"
-      echo "-i [Interface Name] "
-      echo "   ${SP} -CAN Interface name (e.g. can0)"
-      echo ""
-      echo "Examples:"
-      echo "sudo ./CAN_deinit.sh -i can0"
-      echo "sudo ./CAN_deinit.sh -i can1"
-      exit
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
-
-# Validate inputs
-if [ -z $IF_NAME ]; then
-  echo "Error! Missing interface name."
-  echo "Try sudo $0 -h"
-  exit
-fi
-
-NETWORK_FILE="99-${IF_NAME}.network"
-NETWORK_FILE_DIR="/etc/systemd/network/${NETWORK_FILE}"
-
-if [ -f $NETWORK_FILE_DIR ]; then
-  echo "Deinitializing ${NETWORK_FILE_DIR} ..."
-  echo "Stop systemd-networkd ..."
-  systemctl stop systemd-networkd
-  sleep 5
-
-  echo "Removing CAN network file ..."
-  rm ${NETWORK_FILE_DIR}
-
-  echo "Restarting systemd-networkd ..."
-  systemctl restart systemd-networkd
-  sleep 5
-
-  echo ""
-  echo "Done."
-  echo "Automatic bring up of $IF_NAME is now disabled"
 else
-  echo "${NETWORK_FILE_DIR} does not exist."
-  echo "Cannot deinitialize."
+  if [[ $# -le 0 ]]
+  then
+    echo "Missing arguments <communication interface>"
+    exit 1
+  elif [[ $# -ge 2 ]]
+  then
+    echo "Arguments exceeded <communication interface>"
+    exit 1
+  fi
+
+  if [ "$comm_interface" -ge 256 ]
+  then
+    echo " "
+    echo "Communication interface out of range"
+    echo " > Accepts from 0 - 255"
+  else
+    pkexec ip link set can$comm_interface down
+    result=$?
+
+    if [ "$result" -eq 0 ]
+    then
+      echo "Stop systemd-networkd ..."
+      systemctl stop systemd-networkd
+      sleep 5
+
+      network_file="99-can.network"
+      echo "Removing CAN network file ..."
+      rm /etc/systemd/network/${network_file}
+
+      echo "Restarting systemd-networkd ..."
+      systemctl restart systemd-networkd
+      sleep 5
+      
+      result=$?
+    fi
+  fi
+
+  if [ "$result" -eq 0 ]
+  then
+    echo ""
+    echo "============================================================"
+    echo "Done."
+    echo "Automatic CAN bring up is now disabled"
+  fi
+  
 fi
-echo "================================================================================"
