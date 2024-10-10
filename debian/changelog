@@ -1,0 +1,35 @@
+ros-noetic-adi-tmcl (4.0.1-1focal) focal; urgency=high
+
+  * Merge branch 'noetic' of https://github.com/analogdevicesinc/tmcl_ros into noetic
+  * Added support for TMCM-2611
+    Co-Authored-By: Christian Joseph Acar <mailto:124771470+CAcarADI@users.noreply.github.com>
+    Co-Authored-By: Jamila Macagba <mailto:124771486+jmacagba@users.noreply.github.com>
+  * Contributors: mmaralit-adi
+
+ -- ROS@analog.com <ROS@analog.com>  Sun, 14 Jul 2024 16:00:00 -0000
+
+ros-noetic-adi-tmcl (4.0.0-1focal) focal; urgency=high
+
+  * Updated README.md to mention both tmcl_ros (previous package name) and adi_tmcl
+  * Updated package name and transforms
+    
+      * Updated package name in compliance to official ROS release, and updated transforms for multi-axes TMCs
+    
+  * Contributors: mmaralit-adi, jmacagba
+
+ -- ROS@analog.com <ROS@analog.com>  Tue, 12 Dec 2023 16:00:00 -0000
+
+ros-noetic-adi-tmcl (3.0.2-1focal) focal; urgency=high
+
+  * Removed obsolete modules and updated analog.com references in README
+  * Updated to:
+    
+      * Remove obsolete modules
+      * Update analog.com pages in README.md
+      * Update CMakeLists.txt to make sure other drivers that has same names as socket_can_wrapper will not cause conflicts; and also add install support
+    
+  * Contributors: mmaralit-adi, jmacagba
+
+ -- ROS@analog.com <ROS@analog.com>  Thu, 05 Oct 2023 16:00:00 -0000
+
+
