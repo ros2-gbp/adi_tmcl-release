@@ -1,3 +1,26 @@
+## tmcl_ros (noetic) - 4.0.1-1
+
+The packages in the `tmcl_ros` repository were released into the `noetic` distro by running `/usr/local/bin/bloom-release --rosdistro noetic tmcl_ros` on `Thu, 10 Oct 2024 05:44:15 -0000`
+
+The `adi_tmcl` package was released.
+
+Version of package(s) in repository `tmcl_ros`:
+
+- upstream repository: https://github.com/analogdevicesinc/tmcl_ros.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `4.0.0-1`
+- new version: `4.0.1-1`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.25.0`
+- rosdistro version: `0.9.1`
+- vcstools version: `0.1.42`
+
+
 ## adi_tmcl (noetic) - 4.0.0-1
 
 The packages in the `adi_tmcl` repository were released into the `noetic` distro by running `/usr/bin/bloom-release --rosdistro noetic --track noetic adi_tmcl --new-track` on `Mon, 08 Jan 2024 05:09:24 -0000`
