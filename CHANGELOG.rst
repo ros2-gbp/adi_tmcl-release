@@ -2,6 +2,22 @@
 Changelog for package tmcl_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.2 (2024-11-05)
+------------------
+* Added support for TMCM-1316
+* Contributors: Jamila Macagba
+
+2.0.1 (2024-07-15)
+------------------
+* Added support for TMCM-2611
+  Added support for TMCM-2611
+  Co-Authored-By: Christian Joseph Acar <124771470+CAcarADI@users.noreply.github.com>
+  Co-Authored-By: Jamila Macagba <124771486+jmacagba@users.noreply.github.com>
+* Update README.md
+  Update README.md with mention of adi_tmcl and tmcl_ros2
+  Co-Authored-By: Jamila Macagba <124771486+jmacagba@users.noreply.github.com>
+* Contributors: mmaralit-adi
+
 2.0.0 (2023-11-21)
 ------------------
 * Updated package name and TF values
