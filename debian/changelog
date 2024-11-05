@@ -1,0 +1,62 @@
+ros-humble-adi-tmcl (2.0.2-1jammy) jammy; urgency=high
+
+  * Added support for TMCM-1316
+  * Contributors: Jamila Macagba
+
+ -- ROS@analog.com <ROS@analog.com>  Mon, 04 Nov 2024 16:00:00 -0000
+
+ros-humble-adi-tmcl (2.0.1-1jammy) jammy; urgency=high
+
+  * Added support for TMCM-2611
+    Added support for TMCM-2611
+    Co-Authored-By: Christian Joseph Acar <mailto:124771470+CAcarADI@users.noreply.github.com>
+    Co-Authored-By: Jamila Macagba <mailto:124771486+jmacagba@users.noreply.github.com>
+  * Update README.md
+    Update README.md with mention of adi_tmcl and tmcl_ros2
+    Co-Authored-By: Jamila Macagba <mailto:124771486+jmacagba@users.noreply.github.com>
+  * Contributors: mmaralit-adi
+
+ -- ROS@analog.com <ROS@analog.com>  Sun, 14 Jul 2024 16:00:00 -0000
+
+ros-humble-adi-tmcl (2.0.0-1jammy) jammy; urgency=high
+
+  * Updated package name and TF values
+  * Updated to:
+    
+      * Change package name from "tmcl_ros2" to "adi_tmcl" in preparation for ROS release
+      * Change TF values (default)
+    
+  * Contributors: mmaralit-adi, jmacagba
+
+ -- ROS@analog.com <ROS@analog.com>  Mon, 20 Nov 2023 16:00:00 -0000
+
+ros-humble-adi-tmcl (1.0.2-1jammy) jammy; urgency=high
+
+  * Update LICENSE file
+  * Contributors: Jamila Macagba
+
+ -- ROS@analog.com <ROS@analog.com>  Thu, 26 Oct 2023 16:00:00 -0000
+
+ros-humble-adi-tmcl (1.0.1-1jammy) jammy; urgency=high
+
+  * Removed obsolete modules and updated analog.com references in README
+  * Updated to:
+  * Contributors: mmaralit-adi, jmacagba
+
+ -- ROS@analog.com <ROS@analog.com>  Mon, 09 Oct 2023 16:00:00 -0000
+
+ros-humble-adi-tmcl (1.0.0-1jammy) jammy; urgency=high
+
+  * Adding v1.0.0 of tmcl_ros2, ROS2, Humble
+    
+      * Contains official ROS2 Driver for Trinamic Motor Controllers (TMC) that uses Trinamic Motion Control Language (TMCL) protocol
+      * Supported TMC boards: TMCM-1636, TMCM-1617, TMCM-1241, TMCM-1260, TMCM-6214
+      * Supported communication interface and interface driver: CAN (SocketCAN)
+      * Supported ROS and OS distro: Humble (Ubuntu 22.04)
+      * Supported platform: Intel x86 64-bit (amd64)
+    
+  * Contributors: mmaralit-adi, jmacagba
+
+ -- ROS@analog.com <ROS@analog.com>  Tue, 26 Sep 2023 16:00:00 -0000
+
+
