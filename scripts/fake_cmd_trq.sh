@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source /opt/ros/noetic/setup.bash 
+source /opt/ros/humble/setup.bash 
 
 if [ -z "$1" ]
 then
@@ -10,16 +10,16 @@ else
 fi
 
 val=300
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1
 sleep 5
 
 val=0
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1
 sleep 5
 
 val=300
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1
 sleep 5
 
 val=0
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1

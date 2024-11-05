@@ -1,163 +1,253 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.8)
 project(adi_tmcl)
 
-## Find catkin macros and libraries
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  geometry_msgs
-  message_generation
-  std_msgs
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+# uncomment the following section in order to fill in
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
+
+include_directories(include)
+
+############################################
+
+set(msg_files
+  "msg/TmcInfo.msg"
+  "msg/TmcParam.msg"
 )
 
-#################################
-## Getting User Configurations ##
-#################################
-
-option(TMCL_ROS_DEBUG "Show ROS Debug Stream of tmcl_ros" OFF)
-IF(TMCL_ROS_DEBUG)
-add_definitions(-DDEBUG)
-MESSAGE(STATUS "TMCL_ROS_DEBUG is enabled")
-ELSE()
-MESSAGE(STATUS "TMCL_ROS_DEBUG is disabled")
-ENDIF(TMCL_ROS_DEBUG)
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   TmcInfo.msg
-   TmcParam.msg
+set(srv_files
+  "srv/TmcCustomCmd.srv"
+  "srv/TmcGapAll.srv"
+  "srv/TmcGgpAll.srv"
 )
 
-## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-   TmcCustomCmd.srv
-   TmcGapGgpAll.srv
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  ${srv_files}
+  DEPENDENCIES std_msgs)
+
+ament_export_dependencies(rosidl_default_runtime)
+
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+############################################
+
+add_library(${PROJECT_NAME}_socket_can_wrapper SHARED
+  src/socket_can_wrapper.cpp)
+
+target_include_directories(${PROJECT_NAME}_socket_can_wrapper PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
+)
+ament_target_dependencies(${PROJECT_NAME}_socket_can_wrapper rclcpp)
+ament_export_targets(${PROJECT_NAME}_socket_can_wrapperTargets HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs 
-)
+install(
+  TARGETS ${PROJECT_NAME}_socket_can_wrapper
+  EXPORT ${PROJECT_NAME}_socket_can_wrapperTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
 
-###################################
-## catkin specific configuration ##
-###################################
+############################################
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES
-    tmcl_ros
-    tmcl_interpreter
-    ${PROJECT_NAME}_socket_can_wrapper
-    tmcl_motor
-    tmcl_bldc_motor
-    tmcl_stepper_motor
-  CATKIN_DEPENDS roscpp message_runtime std_msgs
+add_library(tmcl_interpreter SHARED
+  src/tmcl_interpreter.cpp)
 
-)
-
-###########
-## Build ##
-###########
-
-## Specify additional locations of header files
-include_directories(
-  include/tmcl_ros
-  ${catkin_INCLUDE_DIRS}
-)
-
-## Declare a C++ library
-add_library(${PROJECT_NAME}_socket_can_wrapper src/socket_can_wrapper.cpp)
-add_library(tmcl_interpreter src/tmcl_interpreter.cpp)
-add_library(tmcl_ros src/tmcl_ros.cpp)
-add_library(tmcl_motor src/tmcl_motor.cpp)
-add_library(tmcl_bldc_motor src/tmcl_bldc_motor.cpp)
-add_library(tmcl_stepper_motor src/tmcl_stepper_motor.cpp)
-
-add_dependencies(tmcl_ros ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(tmcl_motor ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(tmcl_bldc_motor ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(tmcl_stepper_motor ${PROJECT_NAME}_generate_messages_cpp)
-
-## Add cmake target dependencies of the library
-add_dependencies(tmcl_ros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Declare a C++ executable
-add_executable(tmcl_ros_node src/tmcl_ros_node.cpp)
-
-## Specify libraries to link a library or executable target against
 target_link_libraries(tmcl_interpreter ${PROJECT_NAME}_socket_can_wrapper)
-target_link_libraries(tmcl_ros tmcl_interpreter)
-target_link_libraries(tmcl_ros tmcl_motor)
-target_link_libraries(tmcl_interpreter tmcl_motor)
-target_link_libraries(tmcl_motor tmcl_bldc_motor)
-target_link_libraries(tmcl_motor tmcl_stepper_motor)
-target_link_libraries(tmcl_ros_node tmcl_ros ${catkin_LIBRARIES})
-
-## Add cmake target dependencies of the executable
-add_dependencies(tmcl_ros_node ${PROJECT_NAME}_generate_messages_cpp)
-
-#############
-## Install ##
-#############
-
-## Mark executables for installation
-install(TARGETS tmcl_ros_node
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+target_include_directories(tmcl_interpreter PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
 )
 
-## Mark libaries for installation
-install(TARGETS
-  ${PROJECT_NAME}_socket_can_wrapper
-  tmcl_interpreter
-  tmcl_ros
-  tmcl_motor
-  tmcl_bldc_motor
-  tmcl_stepper_motor
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+ament_target_dependencies(tmcl_interpreter rclcpp)
+ament_export_targets(tmcl_interpreterTargets HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
-## Mark cpp header files for installation
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
+install(
+  TARGETS tmcl_interpreter
+  EXPORT tmcl_interpreterTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
+
+############################################
+
+add_library(tmcl_motor SHARED
+  src/tmcl_motor.cpp)
+
+
+target_link_libraries(tmcl_motor tmcl_interpreter "${cpp_typesupport_target}") 
+
+target_include_directories(tmcl_motor PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
 )
 
-## Mark other files for installation (e.g. launch and bag files, etc.)
-install(DIRECTORY
-  launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-  FILES_MATCHING PATTERN "*.launch"
+ament_target_dependencies(tmcl_motor rclcpp std_msgs geometry_msgs)
+ament_export_targets(tmcl_motorTargets HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
-install(DIRECTORY
-  config/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
-  FILES_MATCHING PATTERN "*.yaml"
+install(
+  TARGETS tmcl_motor
+  EXPORT tmcl_motorTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
+
+############################################
+
+add_library(tmcl_bldc_motor SHARED
+  src/tmcl_bldc_motor.cpp)
+
+
+target_link_libraries(tmcl_bldc_motor tmcl_motor tmcl_interpreter "${cpp_typesupport_target}") 
+
+target_include_directories(tmcl_bldc_motor PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
 )
 
-install(DIRECTORY
-  scripts/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts
-  FILES_MATCHING PATTERN "*.sh"
+ament_target_dependencies(tmcl_bldc_motor rclcpp std_msgs geometry_msgs)
+ament_export_targets(tmcl_bldc_motorTargets HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
-install(FILES
-  LICENSE
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(
+  TARGETS tmcl_bldc_motor
+  EXPORT tmcl_bldc_motorTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
+
+############################################
+
+add_library(tmcl_stepper_motor SHARED
+  src/tmcl_stepper_motor.cpp)
+
+
+target_link_libraries(tmcl_stepper_motor tmcl_motor tmcl_interpreter "${cpp_typesupport_target}") 
+
+target_include_directories(tmcl_stepper_motor PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
 )
 
-#############
-## Testing ##
-#############
+ament_target_dependencies(tmcl_stepper_motor rclcpp std_msgs geometry_msgs)
+ament_export_targets(tmcl_stepper_motorTargets HAS_LIBRARY_TARGET)
 
-## None
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+install(
+  TARGETS tmcl_stepper_motor
+  EXPORT tmcl_stepper_motorTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
+
+############################################
+
+
+add_library(tmcl_ros2_lib SHARED
+  src/tmcl_ros2.cpp)
+
+target_link_libraries(tmcl_ros2_lib tmcl_motor tmcl_bldc_motor tmcl_stepper_motor "${cpp_typesupport_target}")
+target_include_directories(tmcl_ros2_lib PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+  ${rclcpp_INCLUDE_DIRS}
+)
+
+ament_target_dependencies(tmcl_ros2_lib rclcpp std_msgs geometry_msgs std_srvs)
+ament_export_targets(tmcl_ros2libTargets HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+install(
+  TARGETS tmcl_ros2_lib
+  EXPORT tmcl_ros2libTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include)
+
+############################################
+
+add_executable(tmcl_ros2_node src/tmcl_ros2_node.cpp)
+target_link_libraries(tmcl_ros2_node tmcl_ros2_lib)
+ament_target_dependencies(tmcl_ros2_node rclcpp)
+
+install(
+  TARGETS tmcl_ros2_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+############################################
+
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+############################################
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # comment the line when a copyright and license is added to all source files
+  set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # comment the line when this package is in a git repo and when
+  # a copyright and license is added to all source files
+  set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()

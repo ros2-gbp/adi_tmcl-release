@@ -3,379 +3,500 @@
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#include "tmcl_stepper_motor.h"
+#include "rclcpp/logger.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "tmcl_ros2/tmcl_stepper_motor.h"
 
-////////////////////////////////////////////////////////////////////////////////
+using std::placeholders::_1;
 
-/* Constructor */
-StepperMotor::StepperMotor(ros::NodeHandle *p_nh, TmclInterpreter* p_tmcl_interpreter, 
-  uint16_t module_number, uint8_t motor_number) :  
-  Motor(p_nh, p_tmcl_interpreter, module_number, motor_number)
+StepperMotor::StepperMotor(rclcpp::Node::SharedPtr p_node, TmclInterpreter* p_tmcl_interpreter,
+  uint8_t motor_number, uint32_t module_number) :
+  Motor(p_node,p_tmcl_interpreter,motor_number, module_number)
 {
-  ROS_DEBUG_STREAM("[StepperMotor::" <<  __func__ << "] called");
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  mode_ = STEPPER_MODE_OPENLOOP;
+  mode_=this->getStepperMode();
 }
 
-/* Destructor */
 StepperMotor::~StepperMotor()
 {
-  ROS_DEBUG_STREAM("[StepperMotor::" <<  __func__ << "] called");
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() <<" [StepperMotor::"
+    << __func__ << "]");
 }
 
 void StepperMotor::init()
 {
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
   int32_t val = 0;
+  Motor::initMotorParams();
+  Motor::initPublisherParams();
+  this->initPublisher();
 
-  ROS_INFO_STREAM("[StepperMotor::" << __func__ << "] called");
-
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "closed loop", motor_number_, &val))
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "fullstep resolution", this->getMotorNumber(),
+      &val))
   {
-    comm_mode_ = (stepper_comm_mode_t) val;
+    motor_full_step_resolution_ = val;
+    RCLCPP_DEBUG(p_node_->get_logger(), "fullstep resolution 0x%02x",motor_full_step_resolution_);
+  }
+  else if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "motor full step resolution",
+            this->getMotorNumber(), &val))
+  {
+    motor_full_step_resolution_ = val;
+    RCLCPP_DEBUG(p_node_->get_logger(), "motor full step resolution 0x%02x",
+      motor_full_step_resolution_);
+  }
+  else if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "MotorFullStepResolution",
+            this->getMotorNumber(), &val))
+  {
+    motor_full_step_resolution_ = val;
+    RCLCPP_DEBUG(p_node_->get_logger(), "MotorFullStepResolution 0x%02x",
+      motor_full_step_resolution_);
   }
   else
   {
-    comm_mode_ = STEPPER_OPENLOOP_MOTOR;
-    ROS_WARN_STREAM("[" << __func__ << "] \"closed loop\" is not available. Set Commutation Mode to Open loop");
+    motor_full_step_resolution_ = 0;
+    RCLCPP_WARN_STREAM(p_node_->get_logger(),"Fail to get fullstep resolution/motor" \
+      " full step resolution; Setting to 0.");
   }
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "MotorFullStepResolution", motor_number_, &val) ||
-     p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "motor full step resolution", motor_number_, &val) ||
-     p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "fullstep resolution", motor_number_, &val))
+
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "MicrostepResolution", this->getMotorNumber(),
+      &val))
   {
-    motor_fullstep_resolution_ = val;
-  }
-  else
-  {
-    motor_fullstep_resolution_ = 0;
-    ROS_WARN_STREAM("[" << __func__ << "] \"motor full step resolution\" is not available");
-  }
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "MicrostepResolution", motor_number_, &val))
-  {
-    microstep_resolution_ = val;
-    switch (microstep_resolution_)
+    RCLCPP_DEBUG(p_node_->get_logger(), "MicrostepResolution 0x%02x",val);
+    if(2300 == this->module_number_)
     {
-      case 0:
-      microstep_resolution_ = 1;
-      break;
-      case 1:
-      microstep_resolution_ = 2;
-      break;
-      case 2:
-      microstep_resolution_ = 4;
-      break;
-      case 3:
-      microstep_resolution_ = 8;
-      break;
-      case 4:
-      microstep_resolution_ = 16;
-      break;
-      case 5:
-      microstep_resolution_ = 32;
-      break;
-      case 6:
-      microstep_resolution_ = 64;
-      break;
-      case 7:
-      microstep_resolution_ = 128;
-      break;
-      default: 
-      microstep_resolution_ = 256;
-      break;
+      // Received value is actual resolution
+      microstep_resolution_ = val;
     }
+    else // Default handling
+    {
+      // Received value if bit shift
+      microstep_resolution_ = 1 << val;
+    }
+    RCLCPP_DEBUG(p_node_->get_logger(), "MicrostepResolution: %d",microstep_resolution_);
   }
   else
   {
     microstep_resolution_ = 0;
-    ROS_WARN_STREAM("[" << __func__ << "] \"MicrostepResolution\" is not available");
-  }
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "relative positioning option", motor_number_, &val))
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] Relative Positioning Option: " << val);
-    ROS_INFO_STREAM("[" << __func__ << "] NOTE: " << param_tmc_cmd_relpos_topic_ <<
-      " depends on the Relative Positioning Option Axis Parameter");
-    ROS_INFO_STREAM("             Refer to datasheet on how to configure.");
-  }
-  else
-  {
-    ROS_WARN_STREAM("[" << __func__ << "] \"relative positioning option\" is not available");
+    RCLCPP_WARN_STREAM(p_node_->get_logger(),"Fail to get MicrostepResolution; Setting to 0.");
   }
 
-  /* Print units of each commands */
-  if(param_wheel_diameter_ == 0 || motor_fullstep_resolution_ == 0 || microstep_resolution_ == 0)
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] Velocity unit: pps");
-  }
-  else
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] Velocity unit: m/s");
-  }
-  if(motor_fullstep_resolution_ == 0 || microstep_resolution_ == 0)
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] Position unit: pulses");
-  }
-  else
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] Position unit: angular degrees");
-  }
+  this->initSubscriberParams();
+  this->initSubscribers();
 
-  ROS_INFO_STREAM("[" << __func__ << "] Torque unit: mA");
-
-  initPublisher();
-  this->initSubscriber();
-  ROS_INFO("[%s] Motor %d Initialized!\n", __func__, motor_number_);
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << "[StepperMotor::" << __func__ <<
+    "] Initialized");
+  return;
 }
 
-/* Publisher Callback */
-void StepperMotor::rosPublishTmcInfo(const ros::TimerEvent& event)
+void StepperMotor::initPublisher()
 {
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  int period_ms = 0;
+
+  if(param_en_pub_tmc_info_)
+  {
+    publisher_ = p_node_->create_publisher<adi_tmcl::msg::TmcInfo>(param_tmc_info_topic_, 10);
+    period_ms = (1000/param_pub_rate_tmc_info_);
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"rate= " << std::to_string(param_pub_rate_tmc_info_)
+      << "; period_ms= " << period_ms);
+    publisher_timer_ = p_node_->create_wall_timer(std::chrono::milliseconds(period_ms),
+      std::bind(&StepperMotor::pubTimerCallback, this));
+  }
+  else
+  {
+    RCLCPP_WARN_STREAM(p_node_->get_logger(), p_node_->get_name() << "/tmc_info_" <<
+      this->getMotorNumber() << " not published.");
+  }
+
+  return;
+}
+
+void StepperMotor::pubTimerCallback()
+{
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  auto message = adi_tmcl::msg::TmcInfo();
   int32_t val = 0;
-  bool b_drv_statusflag_available = false;
 
-  tmc_info_msg_.header.stamp = ros::Time::now();
-  tmc_info_msg_.header.seq = seq_ctr_;
-  tmc_info_msg_.header.frame_id = frame_id_;
-  tmc_info_msg_.interface_name = param_comm_interface_name_;
-  tmc_info_msg_.motor_number = motor_number_;
+  message.header.stamp = p_node_->now();
+  message.header.frame_id = tmc_info_frame_id_;
+  message.interface_name = param_comm_interface_name_;
+  message.motor_num = static_cast<int>(this->getMotorNumber());
+  /* Initialize message to 0 first */
+  message.board_voltage = 0.0;
+  message.status_flag = 0;
+  message.velocity = 0.0;
+  message.position = 0;
+  message.torque = 0;
 
-  /* Initialize messages to 0 first */
-  tmc_info_msg_.board_voltage = 0;
-  tmc_info_msg_.status_flag = 0;
-  tmc_info_msg_.velocity = 0;
-  tmc_info_msg_.position = 0;
-  tmc_info_msg_.torque = 0;
+  // No Board voltage
+  message.board_voltage = NAN;
 
-  /* No Board Voltage */
-  tmc_info_msg_.board_voltage = NAN;
-
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "driver error flags", motor_number_, &val) || 
-     p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "DrvStatusFlags", motor_number_, &val))
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "DrvStatusFlags", this->getMotorNumber(), &val))
   {
-    tmc_info_msg_.status = "driver error flags: "+ std::to_string(val);
-    b_drv_statusflag_available = true;
+    RCLCPP_DEBUG(p_node_->get_logger(), "DrvStatusFlags: 0x%02x", val);
+    message.status.append("[DrvStatusFlags: " + std::to_string(val) + "] ");
+  }
+  else if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "driver error flags",
+            this->getMotorNumber(), &val))
+  {
+    RCLCPP_DEBUG(p_node_->get_logger(), "driver error flags: 0x%02x", val);
+    message.status.append("[driver error flags: " + std::to_string(val) + "] ");
   }
   else
   {
-    ROS_DEBUG_STREAM("[" << __func__ << "] Failed to get driver error flags");
+    RCLCPP_ERROR_STREAM_ONCE(p_node_->get_logger(),"Fail to get DrvStatusFlags/driver error flags");
   }
 
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "extended error flags", motor_number_, &val))
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "extended error flags", this->getMotorNumber(),
+      &val))
   {
-    if(b_drv_statusflag_available)
-    {
-      tmc_info_msg_.status = tmc_info_msg_.status + " | extended error flags: "+ std::to_string(val);
-    }
-    else
-    {
-      tmc_info_msg_.status = "extended error flags: " + std::to_string(val);
-    }
+    RCLCPP_DEBUG(p_node_->get_logger(), "extended error flags: 0x%02x", val);
+    message.status.append("[extended error flags: " + std::to_string(val) + "] ");
   }
   else
   {
-    ROS_DEBUG_STREAM("[" << __func__ << "] Failed to get extended error flags");
+    RCLCPP_ERROR_STREAM_ONCE(p_node_->get_logger(),"Fail to get extended error flags");
   }
-  
-  /* Velocity, Position, Torque */
+
   if(param_pub_actual_vel_)
   {
-    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "ActualVelocity", motor_number_, &val))
+    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "ActualVelocity", this->getMotorNumber(),
+        &val))
     {
-      //converts pps to linear velocity
-      if(param_wheel_diameter_ == 0 || microstep_resolution_ == 0 || motor_fullstep_resolution_ == 0)
+      RCLCPP_DEBUG(p_node_->get_logger(), "ActualVelocity 0x%02x",val);
+      if(0.0 == param_wheel_diameter_ || 0 == microstep_resolution_ ||
+          0 == motor_full_step_resolution_)
       {
-        tmc_info_msg_.velocity = val * param_add_ratio_vel_;
+        message.velocity = val * param_additional_ratio_vel_;
       }
       else
       {
-        tmc_info_msg_.velocity = val * ((PI * param_wheel_diameter_) / 
-          (microstep_resolution_ * (float)motor_fullstep_resolution_)) * param_add_ratio_vel_;
+        message.velocity = val * (((PI * param_wheel_diameter_) /
+          (microstep_resolution_ * (float)motor_full_step_resolution_)) *
+          param_additional_ratio_vel_);
       }
     }
     else
     {
-      ROS_DEBUG_STREAM("[" << __func__ << "] Failed to get ActualVelocity");
+      RCLCPP_ERROR_STREAM_ONCE(p_node_->get_logger(),"Fail to get ActualVelocity");
     }
   }
 
   if(param_pub_actual_pos_)
   {
-    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "ActualPosition", motor_number_, &val))
+    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "ActualPosition", this->getMotorNumber(),
+        &val))
     {
-      //converts pulses to degrees
-      if(microstep_resolution_ == 0 || motor_fullstep_resolution_ == 0)
+      RCLCPP_DEBUG(p_node_->get_logger(), "ActualPosition 0x%02x",val);
+      if(0 == microstep_resolution_ || 0 == motor_full_step_resolution_)
       {
-        tmc_info_msg_.position = val * param_add_ratio_pos_;
+        message.position = val * param_additional_ratio_pos_;
       }
       else
       {
-        tmc_info_msg_.position = val * (ANGULAR_FULL_ROTATION / 
-          (microstep_resolution_ * (float)motor_fullstep_resolution_)) * param_add_ratio_pos_;
+        message.position = val * ((ANGULAR_FULL_ROTATION /
+          (microstep_resolution_ * (float)motor_full_step_resolution_)) *
+          param_additional_ratio_pos_);
       }
     }
     else
     {
-      ROS_DEBUG_STREAM("[" << __func__ << "] Failed to get ActualPosition");
+      RCLCPP_ERROR_STREAM_ONCE(p_node_->get_logger(),"Fail to get ActualPosition");
     }
   }
 
   if(param_pub_actual_trq_)
   {
-    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "torque", motor_number_, &val))
+    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "Torque", this->getMotorNumber(), &val))
     {
-      tmc_info_msg_.torque = val * param_add_ratio_trq_;
+      RCLCPP_DEBUG(p_node_->get_logger(), "Torque 0x%02x",val);
+      message.torque = val * param_additional_ratio_trq_;
     }
     else
     {
-      ROS_DEBUG_STREAM("[" << __func__ << "] Failed to get torque");
+      RCLCPP_ERROR_STREAM_ONCE(p_node_->get_logger(),"Fail to get Torque");
     }
   }
 
-  tmc_info_pub_.publish(tmc_info_msg_);
-  seq_ctr_++;
+  publisher_->publish(message);
+
 }
 
-/* Initialize Subscriber */
-void StepperMotor::initSubscriber()
+tmcl_stepper_mode_t StepperMotor::getStepperMode()
 {
-  ROS_INFO_STREAM("[StepperMotor::" << __func__ << "] called");
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  tmcl_stepper_mode_t mode = STEPPER_MODE_OPENLOOP;
+  int32_t val;
 
-  if(comm_mode_ == STEPPER_OPENLOOP_MOTOR)
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "closed loop", this->getMotorNumber(), &val))
   {
-    ROS_INFO_STREAM("[" << __func__ << "] CommutationMode : OPENLOOP");
-    tmc_cmd_vel_sub_ = p_nh_->subscribe(param_tmc_cmd_vel_topic_, 1000, &StepperMotor::cmdVelCallback, this);
-    tmc_cmd_abspos_sub_ = p_nh_->subscribe(param_tmc_cmd_abspos_topic_, 1000, &StepperMotor::cmdAbsPosCallback, this);
-    tmc_cmd_relpos_sub_ = p_nh_->subscribe(param_tmc_cmd_relpos_topic_, 1000, &StepperMotor::cmdRelPosCallback, this);
-  }
-  else if(comm_mode_ == STEPPER_CLOSEDLOOP_MOTOR)
-  {
-    ROS_INFO_STREAM("[" << __func__ << "] CommutationMode : CLOSEDLOOP");
-    tmc_cmd_vel_sub_ = p_nh_->subscribe(param_tmc_cmd_vel_topic_, 1000, &StepperMotor::cmdVelCallback, this);
-    tmc_cmd_abspos_sub_ = p_nh_->subscribe(param_tmc_cmd_abspos_topic_, 1000, &StepperMotor::cmdAbsPosCallback, this);
-    tmc_cmd_relpos_sub_ = p_nh_->subscribe(param_tmc_cmd_relpos_topic_, 1000, &StepperMotor::cmdRelPosCallback, this);
-    tmc_cmd_trq_sub_ = p_nh_->subscribe(param_tmc_cmd_trq_topic_, 1000, &StepperMotor::cmdTrqCallback, this);
-  }
-}
-
-/* Subscriber Callback */
-void StepperMotor::cmdVelCallback(const geometry_msgs::Twist& msg)
-{
-  float val = msg.linear.x;
-  int32_t board_val = 0;
-
-  //If wheel diameter is set to 0 (or no wheels connected), the input value for linearX is equal to motors rpm 
-  if(param_wheel_diameter_ == 0 || microstep_resolution_ == 0 || motor_fullstep_resolution_ == 0)
-  {
-    board_val = val / param_add_ratio_vel_;
+    mode = static_cast<tmcl_stepper_mode_t>(val);
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(), "closed loop: " << mode);
   }
   else
   {
-    //Formula to convert linear value to pps (unit that the board accepts)
-    board_val = val * ((microstep_resolution_ * (float)motor_fullstep_resolution_) / (PI * param_wheel_diameter_)) * 
-      (1 / param_add_ratio_vel_);
+    RCLCPP_WARN_STREAM(p_node_->get_logger(),"Fail to get closed loop");
   }
 
-  ROS_DEBUG_STREAM("[" << __func__ << "] Subscriber callback entered, received: " << val << " board value: " 
-    << board_val);
+  return mode;
+}
 
-  if(board_val >= 0)
+void StepperMotor::initSubscriberParams()
+{
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+     << __func__ << "]");
+  rcl_interfaces::msg::ParameterDescriptor param_desc;
+  rcl_interfaces::msg::IntegerRange param_int_range;
+  std::string param_default_str = "";
+
+  if(mode_ >= STEPPER_MODE_OPENLOOP)
   {
-    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_ROR, 0, motor_number_, &board_val))
+    param_desc.name = this->getMotorName() + "." + ros_topic_params_[IDX_TMC_CMD_VEL_TOPIC];
+    param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
+    param_desc.description = "Twist topics that will be the source of target velocity \
+      to be set on the TMC";
+    param_desc.read_only = true;
+    param_default_str = "/cmd_vel_" + std::to_string(this->getMotorNumber());
+    p_node_->declare_parameter(param_desc.name,param_default_str,param_desc);
+    param_tmc_cmd_vel_topic_ = p_node_->get_parameter(param_desc.name).as_string();
+
+    param_desc.name = this->getMotorName() + "." + ros_topic_params_[IDX_TMC_CMD_ABSPOS_TOPIC];
+    param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
+    param_desc.description = "Int32 topics that will be the source of target position \
+      to be set on the TMC";
+    param_desc.read_only = true;
+    param_default_str = "/cmd_abspos_" + std::to_string(this->getMotorNumber());
+    p_node_->declare_parameter(param_desc.name,param_default_str,param_desc);
+    param_tmc_cmd_abspos_topic_ = p_node_->get_parameter(param_desc.name).as_string();
+
+    param_desc.name = this->getMotorName() + "." + ros_topic_params_[IDX_TMC_CMD_RELPOS_TOPIC];
+    param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
+    param_desc.description = "Int32 topics that will be the source of target position \
+      to be set on the TMC";
+    param_desc.read_only = true;
+    param_default_str = "/cmd_relpos_" + std::to_string(this->getMotorNumber());
+    p_node_->declare_parameter(param_desc.name,param_default_str,param_desc);
+    param_tmc_cmd_relpos_topic_ = p_node_->get_parameter(param_desc.name).as_string();
+
+    if(mode_ == STEPPER_MODE_CLOSEDLOOP)
     {
-      ROS_DEBUG_STREAM("\n[" << __func__ << "] Subscriber callback exited successfully");
+      param_desc.name = this->getMotorName() + "." + ros_topic_params_[IDX_TMC_CMD_TRQ_TOPIC];
+      param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
+      param_desc.description = "Int32 topics that will be the source of target torque \
+        to be set on the TMC";
+      param_desc.read_only = true;
+      param_default_str = "/cmd_trq_" + std::to_string(this->getMotorNumber());
+      p_node_->declare_parameter(param_desc.name,param_default_str,param_desc);
+      param_tmc_cmd_trq_topic_ = p_node_->get_parameter(param_desc.name).as_string();
+    }
+  }
+
+}
+
+void StepperMotor::initSubscribers()
+{
+  RCLCPP_INFO_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  int32_t val = 0;
+
+  if(mode_ >= STEPPER_MODE_OPENLOOP)
+  {
+    subscription_cmd_vel_=p_node_->create_subscription<geometry_msgs::msg::Twist>(
+      param_tmc_cmd_vel_topic_, 10, std::bind(&StepperMotor::cmdVelSubscriberCallback, this, _1));
+    /* Print unit */
+    RCLCPP_INFO(p_node_->get_logger(),"========================================");
+    RCLCPP_INFO(p_node_->get_logger(),"Subscribed to %s:", param_tmc_cmd_vel_topic_.c_str());
+    if(0.0 == param_wheel_diameter_ || 0 == microstep_resolution_ ||
+        0 == motor_full_step_resolution_)
+    {
+      RCLCPP_INFO_STREAM(p_node_->get_logger(),"  Velocity unit: pps");
     }
     else
     {
-      ROS_ERROR_STREAM("[" << __func__ << "] Failed to set Velocity");
+      RCLCPP_INFO_STREAM(p_node_->get_logger(),"  Velocity unit: m/s");
     }
+
+    subscription_cmd_abspos_=p_node_->create_subscription<std_msgs::msg::Int32>(
+      param_tmc_cmd_abspos_topic_, 10, std::bind(&StepperMotor::cmdAbsposSubscriberCallback,
+      this, _1));
+
+    subscription_cmd_relpos_=p_node_->create_subscription<std_msgs::msg::Int32>(
+      param_tmc_cmd_relpos_topic_, 10, std::bind(&StepperMotor::cmdRelposSubscriberCallback,
+      this, _1));
+
+    /* Print unit */
+    RCLCPP_INFO(p_node_->get_logger(),"========================================");
+    RCLCPP_INFO(p_node_->get_logger(),"Subscribed to %s and %s:",
+      param_tmc_cmd_abspos_topic_.c_str(), param_tmc_cmd_relpos_topic_.c_str());
+    if(0 == microstep_resolution_ || 0 == motor_full_step_resolution_)
+    {
+      RCLCPP_INFO_STREAM(p_node_->get_logger(),"  Position unit: pulses");
+    }
+    else
+    {
+      RCLCPP_INFO_STREAM(p_node_->get_logger(),"  Position unit: angular degrees");
+    }
+
+    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_GAP, "relative positioning option",
+    this->getMotorNumber(), &val))
+    {
+      RCLCPP_DEBUG(p_node_->get_logger(), "relative positioning option 0x%02x",val);
+    }
+    RCLCPP_INFO_STREAM(p_node_->get_logger(),"NOTE: " << param_tmc_cmd_relpos_topic_ <<
+      " depends on the Relative Positioning Option Axis Parameter.");
+    RCLCPP_INFO_STREAM(p_node_->get_logger(),"      Currently set as " << val <<
+      ". Refer to datasheet on how to configure.");
+
+    if(mode_ == STEPPER_MODE_CLOSEDLOOP)
+    {
+      subscription_cmd_trq_=p_node_->create_subscription<std_msgs::msg::Int32>(
+        param_tmc_cmd_trq_topic_, 10, std::bind(&StepperMotor::cmdTrqSubscriberCallback, this, _1));
+       /* Print unit */
+      RCLCPP_INFO(p_node_->get_logger(),"========================================");
+      RCLCPP_INFO(p_node_->get_logger(),"Subscribed to %s:", param_tmc_cmd_trq_topic_.c_str());
+      RCLCPP_INFO_STREAM(p_node_->get_logger(),"  Torque unit: mA");
+    }
+  }
+  RCLCPP_INFO(p_node_->get_logger(),"========================================");
+}
+
+void StepperMotor::cmdVelSubscriberCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+{
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  float val = msg->linear.x;
+  int32_t pps_val = 0;
+  tmcl_cmd_t vel_cmd = TMCL_CMD_ROR;
+
+  if(0.0 == param_wheel_diameter_ || 0 == microstep_resolution_ || 0 == motor_full_step_resolution_)
+  {
+    pps_val = val / param_additional_ratio_vel_;
   }
   else
   {
-    board_val = abs(board_val);
-    if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_ROL, 0, motor_number_, &board_val))
-    {
-      ROS_DEBUG_STREAM("\n[" << __func__ << "] Subscriber callback exited successfully");
-    }
-    else
-    {
-      ROS_ERROR_STREAM("[" << __func__ << "] Failed to set Velocity");
-    }
-  } 
+    pps_val = val * (((microstep_resolution_ * (float)motor_full_step_resolution_) /
+      (PI * param_wheel_diameter_)) * (1 / param_additional_ratio_vel_));
+  }
+
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(), this->getMotorName() << "Setting cmd_vel, received: "
+    << val << " board_val: " << pps_val);
+
+  if(val < 0)
+  {
+    pps_val = pps_val * -1; // Change sign to positive
+    vel_cmd = TMCL_CMD_ROL; // Rotate Left
+  }
+  else
+  {
+    vel_cmd = TMCL_CMD_ROR; // Rotate Right
+  }
+
+  if(p_tmcl_interpreter_->executeCmd(vel_cmd, static_cast<uint8_t>(0x00), this->getMotorNumber(),
+      &pps_val))
+  {
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"\nSubscriber callback " << __func__  <<
+      " exited successfully");
+  }
+  else
+  {
+    RCLCPP_ERROR_STREAM(p_node_->get_logger(),"Fail to set TargetVelocity");
+  }
+  return;
 }
-void StepperMotor::cmdAbsPosCallback(const std_msgs::Int32 msg)
+
+void StepperMotor::cmdRelposSubscriberCallback(const std_msgs::msg::Int32::SharedPtr msg)
 {
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
   float convert_const_deg = 0.00;
+  int32_t val = msg->data;
   int32_t unit_val = 0;
-  int32_t val = msg.data;
 
-  //convert input(degrees) to unit
-  if(microstep_resolution_ > 0 && motor_fullstep_resolution_ > 0)
+  if(0 < microstep_resolution_ && 0 < motor_full_step_resolution_)
   {
-    convert_const_deg = ((microstep_resolution_ * (float)motor_fullstep_resolution_) /  ANGULAR_FULL_ROTATION) *
-      (1 / param_add_ratio_pos_);
+    convert_const_deg = ((microstep_resolution_ * (float)motor_full_step_resolution_) /
+      ANGULAR_FULL_ROTATION) * (1 / param_additional_ratio_pos_);
   }
   else
   {
-    //inverting position additional ratio
-    convert_const_deg = 1 / param_add_ratio_pos_;
+    convert_const_deg = 1 / param_additional_ratio_pos_;
   }
 
   unit_val = val * convert_const_deg;
-
-  ROS_DEBUG_STREAM("[" << __func__ << "] Subscriber callback entered, received: " << val << " board value: "
-    << unit_val);
-
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_MVP, 0, motor_number_, &unit_val))
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(), this->getMotorName() << "Setting cmd_relpos, " <<
+    "received: "<< val << " board_val: " << unit_val);
+  const uint8_t REL = 1;
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_MVP, REL, this->getMotorNumber(), &unit_val))
   {
-    ROS_DEBUG_STREAM("\n[" << __func__ << "] Subscriber callback exited successfully");
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"\nSubscriber callback " << __func__  <<
+      " exited successfully");
   }
   else
   {
-    ROS_ERROR_STREAM("[" << __func__ << "] Failed to set Absolute Position");
+    RCLCPP_ERROR_STREAM(p_node_->get_logger(),"Fail to set Relative TargetPosition");
   }
+  return;
 }
-void StepperMotor::cmdRelPosCallback(const std_msgs::Int32 msg)
+
+void StepperMotor::cmdAbsposSubscriberCallback(const std_msgs::msg::Int32::SharedPtr msg)
 {
-  float convert_const_deg = 0;
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  float convert_const_deg = 0.00;
+  int32_t val = msg->data;
   int32_t unit_val = 0;
-  int32_t val = msg.data;
 
-  //convert input(degrees) to unit
-  if(microstep_resolution_ > 0 && motor_fullstep_resolution_ > 0)
+  if(0 < microstep_resolution_ && 0 < motor_full_step_resolution_)
   {
-    convert_const_deg = ((microstep_resolution_ * (float)motor_fullstep_resolution_) /  ANGULAR_FULL_ROTATION) *
-      (1 / param_add_ratio_pos_);
+    convert_const_deg = ((microstep_resolution_ * (float)motor_full_step_resolution_) /
+      ANGULAR_FULL_ROTATION) * (1 / param_additional_ratio_pos_);
   }
   else
   {
-    //inverting position additional ratio
-    convert_const_deg = 1 / param_add_ratio_pos_;
+    convert_const_deg = 1 / param_additional_ratio_pos_;
   }
 
-  unit_val = val *  convert_const_deg;
-
-  ROS_DEBUG_STREAM("[" << __func__ << "] Subscriber callback entered, received: " << val << " board value: "
-    << unit_val);
-
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_MVP, 1, motor_number_, &unit_val))
+  unit_val = val * convert_const_deg;
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(), this->getMotorName() << "Setting cmd_abspos, " <<
+    "received: "<< val << " board_val: " << unit_val);
+  const uint8_t ABS = 0;
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_MVP, ABS, this->getMotorNumber(), &unit_val))
   {
-    ROS_DEBUG_STREAM("\n[" << __func__ << "] Subscriber callback exited successfully");
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"\nSubscriber callback " << __func__  <<
+      " exited successfully");
   }
   else
   {
-    ROS_ERROR_STREAM("[" << __func__ << "] Failed to set Relative Position");
+    RCLCPP_ERROR_STREAM(p_node_->get_logger(),"Fail to set Absolute TargetPosition");
   }
+  return;
 }
-void StepperMotor::cmdTrqCallback(const std_msgs::Int32 msg)
+
+void StepperMotor::cmdTrqSubscriberCallback(const std_msgs::msg::Int32::SharedPtr msg)
 {
-  int32_t val = msg.data;
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(),this->getMotorName() << " [StepperMotor::"
+    << __func__ << "]");
+  int32_t val = msg->data;
 
-  val /=  param_add_ratio_trq_;
+  val = val / param_additional_ratio_trq_;
+  RCLCPP_DEBUG_STREAM(p_node_->get_logger(), this->getMotorName() << "Setting cmd_trq, " <<
+    "received: "<< msg->data << " board_val: " << val);
 
-  ROS_DEBUG_STREAM("[" << __func__ << "] Subscriber callback entered, received: " << val);
-
-  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_SAP, "torque", motor_number_, &val))
+  if(p_tmcl_interpreter_->executeCmd(TMCL_CMD_SAP, "torque", this->getMotorNumber(), &val))
   {
-    ROS_DEBUG_STREAM("\n[" << __func__ << "] Subscriber callback exited successfully");
+    RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"\nSubscriber callback " << __func__  <<
+      " exited successfully");
   }
   else
   {
-    ROS_ERROR_STREAM("[" << __func__ << "] Failed to set Torque");
+    RCLCPP_ERROR_STREAM(p_node_->get_logger(),"Fail to set torque");
   }
+  return;
 }
+

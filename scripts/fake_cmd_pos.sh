@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source /opt/ros/noetic/setup.bash 
+source /opt/ros/humble/setup.bash 
 
 if [ -z "$1" ]
 then
@@ -9,20 +9,20 @@ else
   topic=$1
 fi
 
-# Increasing speed clockwise
+# Rotating clockwise
 val=0
 for i in {1..3}
 do
 val=360
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1
 sleep 5
 done
 
-# Increasing speed counter-clockwise
+# Rotating counter-clockwise
 val=0
 for i in {1..3}
 do
 val=-360
-rostopic pub $topic std_msgs/Int32 "data: $val" -1
+ros2 topic pub $topic std_msgs/msg/Int32 "data: $val" -1
 sleep 5
 done
