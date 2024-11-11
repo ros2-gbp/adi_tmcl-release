@@ -1,36 +1,26 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
+<package format="2">
   <name>adi_tmcl</name>
-  <version>2.0.2</version>
-  <description>The adi_tmcl ROS2 package</description>
-  <maintainer email="ROS@analog.com">ROS@analog.com</maintainer>
-  <license>BSD 3-Clause</license>
+  <version>4.0.2</version>
+  <description>The adi_tmcl ROS package</description>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <maintainer email="ROS@analog.com">Analog Devices</maintainer>
 
-  <build_depend>rclcpp</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>std_srvs</build_depend>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
   <build_depend>geometry_msgs</build_depend>
-
-  <exec_depend>rclcpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>std_srvs</exec_depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <depend>std_msgs</depend>
 
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
-
-  <!-- Build custom msg-->
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
-
-  <exec_depend>rosidl_default_runtime</exec_depend>
-
-  <member_of_group>rosidl_interface_packages</member_of_group>
-
+  <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <build_type>ament_cmake</build_type>
+    <!-- Other tools can request additional information be placed here -->
+
   </export>
 </package>
