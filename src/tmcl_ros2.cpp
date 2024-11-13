@@ -1,11 +1,11 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
 #include "rclcpp/logger.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "tmcl_ros2/tmcl_ros2.h"
+#include "adi_tmcl/tmcl_ros2.hpp"
 
 #include <string>
 
@@ -214,34 +214,19 @@ rcl_interfaces::msg::SetParametersResult TmclRos2::parametersCallback(const \
   RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"[TmclRos2::" <<  __func__ << "] called");
   rcl_interfaces::msg::SetParametersResult result;
   rcl_interfaces::msg::ParameterDescriptor param_desc;
-  bool b_valid_type = false;
   for(const auto &parameter : parameters)
   {
     RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"Parameter: " << parameter.get_name());
     RCLCPP_DEBUG_STREAM(p_node_->get_logger(),"Parameter Type: " << parameter.get_type());
-    if(p_node_->has_parameter(parameter.get_name()))
-    {
-      param_desc = p_node_->describe_parameter(parameter.get_name());
-      if(parameter.get_type() == param_desc.type)
-      {
-        b_valid_type = true;
-      }
-      else // All other params
-      {
-        result.successful = false;
-        result.reason = "Incorrect parameter type.";
-      }
-    }
-    else
+    if(!p_node_->has_parameter(parameter.get_name()))
     {
       // Assume this callback is called during declaration of parameters.
       RCLCPP_INFO_STREAM(p_node_->get_logger(),"Declaring "<< parameter.get_name() << \
         ". Using values from YAML/Launch file.");
-      b_valid_type = true;
     }
 
     // Validate en_motors[]
-    if(b_valid_type && parameter.get_name() == general_params_[IDX_EN_MOTORS])
+    if(parameter.get_name() == general_params_[IDX_EN_MOTORS])
     {
       if(b_allow_en_motors_change_)
       {
@@ -258,7 +243,7 @@ rcl_interfaces::msg::SetParametersResult TmclRos2::parametersCallback(const \
           general_params_[IDX_EN_MOTORS]);
       }
     }
-    else if(b_valid_type)
+    else
     {
       result.successful = true;
       result.reason = "Success";
