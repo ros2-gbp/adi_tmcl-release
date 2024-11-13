@@ -1,16 +1,16 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#ifndef TMCL_INTERPRETER_H
-#define TMCL_INTERPRETER_H
+#ifndef TMCL_INTERPRETER_HPP
+#define TMCL_INTERPRETER_HPP
 
 #include <future>
 #include <chrono>
 #include <vector>
 
-#include "tmcl_ros2/socket_can_wrapper.h"
+#include "adi_tmcl/socket_can_wrapper.hpp"
 
 /** A TMCL Tx/Rx format will always be lke the following:
   * - Tx: | [[Module Address]] |     <Command>    |  <Type>  |  <Motor>  | <Value> | <Value> | <Value> | <Value> | [[Checksum]]
@@ -134,4 +134,4 @@ private:
   bool b_retries_exceeded_;
 };
 
-#endif /* _TMCL_INTERPRETER_H */
+#endif /* _TMCL_INTERPRETER_HPP */

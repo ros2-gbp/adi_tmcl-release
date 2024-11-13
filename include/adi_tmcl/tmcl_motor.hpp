@@ -1,13 +1,13 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#ifndef TMCL_MOTOR_H
-#define TMCL_MOTOR_H
+#ifndef TMCL_MOTOR_HPP
+#define TMCL_MOTOR_HPP
 
-#include "tmcl_ros2/tmcl_interpreter.h"
-#include "tmcl_ros2/tmcl_common.h"
+#include "adi_tmcl/tmcl_interpreter.hpp"
+#include "adi_tmcl/tmcl_common.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "adi_tmcl/msg/tmc_info.hpp"
@@ -145,4 +145,4 @@ static const std::vector<std::string> additional_ratio_params_ = {
   "MAX"         /* This should not be used */
 };
 
-#endif //TMCL_MOTOR_H
+#endif //TMCL_MOTOR_HPP
