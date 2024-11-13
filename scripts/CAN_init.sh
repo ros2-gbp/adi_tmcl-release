@@ -1,90 +1,111 @@
 #!/bin/bash
 
-comm_interface=$1
-bitrate=$2
-
-arg_pass=true
-result=1
+# Variable for 2 spaces
+SP=`echo "  "`
 
 if [ "$(whoami)" != root ]
 then
   echo "Please run this script with sudo. Exiting!"
+  echo "Try sudo $0 -h"
   exit
-
-else
-
-  if [[ $# -le 1 ]]
-  then
-    echo "Missing arguments <communication interface> <bitrate>"
-    exit 1
-  elif [[ $# -ge 3 ]]
-  then
-    echo "Arguments exceeded <communication interface> <bitrate>"
-    exit 1
-  fi
-
-  if [ "$comm_interface" -ge 256 ]
-  then
-    echo " "
-    echo "Communication interface out of range"
-    echo " > Accepts from 0 - 255"
-    arg_pass=false
-  fi
-
-  if [ "$bitrate" != 20000 -a "$bitrate" != 50000 -a "$bitrate" != 100000 -a \
-      "$bitrate" != 125000 -a "$bitrate" != 250000 -a "$bitrate" != 500000 -a \
-      "$bitrate" != 1000000 ]
-  then 
-    echo " "
-    echo "Invalid bitrate"
-    echo " == Accepted values =="
-    echo " > 20000"
-    echo " > 50000"
-    echo " > 100000"
-    echo " > 125000"
-    echo " > 250000"
-    echo " > 500000"
-    echo " > 1000000"
-    arg_pass=false
-  fi
-
-  if [ "$arg_pass" = true ]
-  then
-    network_file="99-can.network"
-    echo "Creating $network_file ..."
-    rm -f $network_file
-    touch $network_file
-
-    echo "[Match]" >> $network_file
-    echo "Name=can$comm_interface" >> $network_file
-    echo "[CAN]" >> $network_file
-    echo "BitRate=$bitrate" >> $network_file
-
-    echo "Moving $network_file to /etc/systemd/network ..."
-    cp $network_file /etc/systemd/network
-
-    echo "Stop systemd-networkd ..."
-    systemctl stop systemd-networkd
-    sleep 5
-
-    echo "Enabling systemd-networkd ..."
-    systemctl enable systemd-networkd
-    sleep 5
-
-    echo "Restarting systemd-networkd ..."
-    systemctl restart systemd-networkd
-    sleep 5
-
-    result=$?
-    rm $network_file
-  fi
-
-  if [ "$result" -eq 0 ]
-  then
-    echo ""
-    echo "============================================================"
-    echo "Done."
-    echo "can$comm_interface will automatically be brought UP on boot"
-  fi
-  
 fi
+
+# Script arguments check
+echo "================================================================================"
+
+while [ ! $# -eq 0 ]
+do
+  case "$1" in
+    -i)
+      IF_NAME="$2"
+      shift
+      shift
+      ;;
+    -b)
+      IF_BR="$2"
+      shift
+      shift
+      ;;
+    -h)
+      echo "Usage ./CAN_init.sh [<options>]"
+      echo "where <options> are:"
+      echo "-i [Interface Name] "
+      echo "   ${SP} -CAN Interface name (e.g. can0)"
+      echo "-b [Bit Rate] "
+      echo "   ${SP} -CAN Bit Rate"
+      echo "   ${SP}${SP}${SP}${SP}where [Bit Rate] can be the following:"
+      echo "   ${SP}${SP}${SP}${SP} 20000"
+      echo "   ${SP}${SP}${SP}${SP} 50000"
+      echo "   ${SP}${SP}${SP}${SP} 100000"
+      echo "   ${SP}${SP}${SP}${SP} 125000"
+      echo "   ${SP}${SP}${SP}${SP} 250000"
+      echo "   ${SP}${SP}${SP}${SP} 500000"
+      echo "   ${SP}${SP}${SP}${SP} 1000000"
+      echo "-h ${SP} - Get a bit of help about this script"
+      echo ""
+      echo "Examples:"
+      echo "sudo ./CAN_init.sh -i can0 -b 1000000"
+      echo "sudo ./CAN_init.sh -i can1 -b 500000"
+      exit
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+# Validate inputs
+if [ -z $IF_NAME ]; then
+  echo "Error! Missing interface name."
+  echo "Try sudo $0 -h"
+  exit
+elif [ -z $IF_BR ]; then
+  echo "Error! Missing interface bit rate."
+  echo "Try sudo $0 -h"
+  exit
+fi
+
+if [ $IF_BR != 20000 -a $IF_BR != 50000 -a $IF_BR != 100000 -a \
+    $IF_BR != 125000 -a $IF_BR != 250000 -a $IF_BR != 500000 -a \
+    $IF_BR != 1000000 ]
+then
+  echo "Error! Invalid bit rate."
+  echo "Try sudo $0 -h"
+  exit
+fi
+
+# Create a *.network file
+NETWORK_FILE="99-${IF_NAME}.network"
+echo "Creating $NETWORK_FILE ..."
+touch $NETWORK_FILE
+echo "[Match]"        >> $NETWORK_FILE
+echo "Name=$IF_NAME"  >> $NETWORK_FILE
+echo "[CAN]"          >> $NETWORK_FILE
+echo "BitRate=$IF_BR" >> $NETWORK_FILE
+
+# Copy *.network file to /etc/systemd/network
+echo "Moving $NETWORK_FILE to /etc/systemd/network ..."
+cp $NETWORK_FILE /etc/systemd/network
+
+# Stop systemd-networkd
+echo "Stop systemd-networkd..."
+systemctl stop systemd-networkd
+sleep 5
+
+# Enable systemd-networkd
+echo "Enabling systemd-networkd..."
+systemctl enable systemd-networkd
+sleep 5
+
+# Restart systemd-networkd
+echo "Restarting systemd-networkd..."
+systemctl restart systemd-networkd
+sleep 5
+
+echo "Removing temporary files..."
+rm $NETWORK_FILE
+
+echo "Done."
+echo "$IF_NAME will automatically be brought UP on boot."
+
+echo "================================================================================"
