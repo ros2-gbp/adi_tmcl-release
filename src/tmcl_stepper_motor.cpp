@@ -1,11 +1,11 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
 #include "rclcpp/logger.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "tmcl_ros2/tmcl_stepper_motor.h"
+#include "adi_tmcl/tmcl_stepper_motor.hpp"
 
 using std::placeholders::_1;
 

@@ -1,10 +1,10 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#ifndef TMCL_COMMON_H
-#define TMCL_COMMON_H
+#ifndef TMCL_COMMON_HPP
+#define TMCL_COMMON_HPP
 
 /*******************************************************************************/
 /*                      Constants and Enumerations                             */
@@ -34,4 +34,4 @@ static const std::vector<std::string>  comm_interface_params_ = {
   "MAX"         /* This should not be used */
 };
 
-#endif //TMCL_COMMON_H
+#endif //TMCL_COMMON_HPP

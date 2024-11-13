@@ -1,11 +1,11 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
 #include "rclcpp/logger.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "tmcl_ros2/tmcl_ros2.h"
+#include "adi_tmcl/tmcl_ros2.hpp"
 
 TmclRos2 *p_tmcl_ros2 = nullptr;
 bool g_shutdown_signal = false;
@@ -24,7 +24,7 @@ int main(int argc, char ** argv)
   rclcpp::uninstall_signal_handlers();
   std::signal(SIGINT, signal_callback_handler);
   std::signal(SIGTERM, signal_callback_handler);
-  std::signal(SIGKILL, signal_callback_handler);
+  std::signal(SIGABRT, signal_callback_handler);
 
   try
   {
@@ -46,10 +46,12 @@ int main(int argc, char ** argv)
       throw-1;
     }
   }
-  catch(...)
+  catch(int exception)
   {
+    RCLCPP_INFO_STREAM(node->get_logger(),"Caught " << exception);
     graceful_shutdown();
   }
+
   return 0;
 }
 
@@ -70,4 +72,11 @@ void signal_callback_handler(int signum)
 {
   RCLCPP_INFO_STREAM(rclcpp::get_logger("tmcl_ros2_node shutdown"),"Caught signal: " << signum << ". Terminating...");
   g_shutdown_signal = true;
+
+  // Implement graceful shutdown if SIGABRT is received
+  // After SIGABRT, process will be killed/terminated and will not go back to main loop
+  if(SIGABRT==signum)
+  {
+    graceful_shutdown();
+  }
 }

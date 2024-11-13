@@ -1,10 +1,10 @@
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#ifndef SOCKET_CAN_WRAPPER_H
-#define SOCKET_CAN_WRAPPER_H
+#ifndef SOCKET_CAN_WRAPPER_HPP
+#define SOCKET_CAN_WRAPPER_HPP
 
 class SocketCAN
 {
@@ -37,4 +37,4 @@ private:
   rclcpp::Logger logger_;
 };
 
-#endif // SOCKET_CAN_WRAPPER_H
+#endif // SOCKET_CAN_WRAPPER_HPP
