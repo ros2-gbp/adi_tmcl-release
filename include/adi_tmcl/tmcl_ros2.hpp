@@ -1,14 +1,14 @@
 
 /**
- * Copyright (c) 2023 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
-#ifndef TMCL_ROS2_H
+#ifndef TMCL_ROS2_HPP
 #define TMCL_ROS2_H
 
-#include "tmcl_ros2/tmcl_bldc_motor.h"
-#include "tmcl_ros2/tmcl_stepper_motor.h"
+#include "adi_tmcl/tmcl_bldc_motor.hpp"
+#include "adi_tmcl/tmcl_stepper_motor.hpp"
 #include "adi_tmcl/srv/tmc_custom_cmd.hpp"
 #include "adi_tmcl/srv/tmc_gap_all.hpp"
 #include "adi_tmcl/srv/tmc_ggp_all.hpp"
@@ -127,4 +127,4 @@ static const std::vector<std::string> tmcl_custom_cmd_ = {
 };
 
 
-#endif // TMCL_ROS2_H
+#endif // TMCL_ROS2_HPP
