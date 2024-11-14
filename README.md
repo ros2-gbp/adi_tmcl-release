@@ -1,3 +1,26 @@
+## adi_tmcl (humble) - 2.0.3-2
+
+The packages in the `adi_tmcl` repository were released into the `humble` distro by running `/usr/bin/bloom-release --rosdistro humble adi_tmcl` on `Thu, 14 Nov 2024 06:20:22 -0000`
+
+The `adi_tmcl` package was released.
+
+Version of package(s) in repository `adi_tmcl`:
+
+- upstream repository: https://github.com/analogdevicesinc/tmcl_ros2.git
+- release repository: https://github.com/ros2-gbp/adi_tmcl-release.git
+- rosdistro version: `2.0.3-1`
+- old version: `2.0.3-1`
+- new version: `2.0.3-2`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.25.1`
+- rosdistro version: `1.0.1`
+- vcstools version: `0.1.42`
+
+
 ## adi_tmcl (humble) - 2.0.3-1
 
 The packages in the `adi_tmcl` repository were released into the `humble` distro by running `/usr/bin/bloom-release --rosdistro humble adi_tmcl` on `Wed, 13 Nov 2024 10:43:41 -0000`
