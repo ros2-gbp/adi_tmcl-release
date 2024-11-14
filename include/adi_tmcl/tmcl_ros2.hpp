@@ -1,11 +1,10 @@
-
 /**
  * Copyright (c) 2023-2024 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc. and its licensors.
  **/
 
 #ifndef TMCL_ROS2_HPP
-#define TMCL_ROS2_H
+#define TMCL_ROS2_HPP
 
 #include "adi_tmcl/tmcl_bldc_motor.hpp"
 #include "adi_tmcl/tmcl_stepper_motor.hpp"
